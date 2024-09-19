@@ -30,7 +30,11 @@ module Runtime_4 = struct
 
     let init () = ()
 
+    type password = unit
     type 'a key = int * (unit -> 'a)
+
+    let initial_password = ()
+    let with_password f = f ()
 
     let key_counter = ref 0
 
@@ -38,6 +42,8 @@ module Runtime_4 = struct
       let idx = !key_counter in
       key_counter := idx + 1;
       (idx, init_orphan)
+
+    let new_key_safe ?split_from_parent:_ init_orphan = new_key init_orphan
 
     (* If necessary, grow the current domain's local state array such that [idx]
     * is a valid index in the array. *)
@@ -56,14 +62,16 @@ module Runtime_4 = struct
         new_st
       end
 
-    let set (idx, _init) x =
+    let set' () (idx, _init) x =
       let st = maybe_grow idx in
       (* [Sys.opaque_identity] ensures that flambda does not look at the type of
       * [x], which may be a [float] and conclude that the [st] is a float array.
       * We do not want OCaml's float array optimisation kicking in here. *)
       st.(idx) <- Obj.repr (Sys.opaque_identity x)
 
-    let get (idx, init) =
+    let set key x = set' () key x
+
+    let get' () (idx, init) =
       let st = maybe_grow idx in
       let v = st.(idx) in
       if v == unique_value then
@@ -71,6 +79,8 @@ module Runtime_4 = struct
         st.(idx) <- (Sys.opaque_identity v');
         Obj.magic v'
       else Obj.magic v
+
+    let get key = get' () key
   end
 
   (******** Callbacks **********)
@@ -81,7 +91,7 @@ module Runtime_4 = struct
   let first_spawn_function = ref (fun () -> ())
 
   let before_first_spawn f =
-    if Atomic.get first_domain_spawned then
+    if Atomic.get_safe first_domain_spawned then
       raise (Invalid_argument "first domain already spawned")
     else begin
       let old_f = !first_spawn_function in
@@ -91,7 +101,7 @@ module Runtime_4 = struct
 
   let at_exit_key = DLS.new_key (fun () -> (fun () -> ()))
 
-  let at_exit f =
+  let at_exit' () f =
     let old_exit : unit -> unit = DLS.get at_exit_key in
     let new_exit () =
       (* The domain termination callbacks ([at_exit]) are run in
@@ -101,6 +111,10 @@ module Runtime_4 = struct
       f (); old_exit ()
     in
     DLS.set at_exit_key new_exit
+
+  let at_exit_safe = at_exit' ()
+
+  let at_exit = at_exit_safe
 
   let do_at_exit () =
     let f : unit -> unit = DLS.get at_exit_key in
@@ -112,6 +126,8 @@ module Runtime_4 = struct
   type !'a t
   type id = int
   let spawn _ = not_implemented ()
+  let spawn_safe _ = not_implemented ()
+  let spawn_with_dls _ = not_implemented ()
   let join _ = not_implemented ()
   let get_id _ = not_implemented ()
   let self () = not_implemented ()
@@ -161,7 +177,7 @@ module Runtime_5 = struct
   module DLS = struct
 
     module Obj_opt : sig
-      type t
+      type t : value mod portable uncontended
       val none : t @@ portable
       val some : 'a -> t @@ portable
       val is_some : t -> bool @@ portable
@@ -173,11 +189,14 @@ module Runtime_5 = struct
           [Obj.obj (Obj.repr v)]. *)
       val unsafe_get : t -> 'a @@ portable
     end = struct
-      type t = Obj.t
-      let none = Obj.repr (ref 0)
-      let some v = Obj.repr v
-      let is_some obj = (obj != none)
-      let unsafe_get obj = Obj.obj obj
+      type t : value mod portable uncontended = O of Obj.t
+      let none : t = O (Obj.repr (ref 0))
+      let some v = O (Obj.repr v)
+      let is_some obj =
+        let O obj = obj
+        and O none = none in
+        (obj != none)
+      let unsafe_get (O obj) = Obj.obj obj
     end
 
     type dls_state = Obj_opt.t array
@@ -196,28 +215,47 @@ module Runtime_5 = struct
 
     let init () = create_dls ()
 
-    type 'a key = int * (unit -> 'a)
+    type password = unit
+
+    type 'a key : value mod portable uncontended = K of int * (password -> 'a) @@ portable
+
+    let initial_password = ()
+    let with_password f = f ()
 
     let key_counter = Atomic.make 0
 
     type key_initializer =
-      KI: 'a key * ('a -> 'a) -> key_initializer
+      KI: 'a key * ('a -> (password -> 'a) @ portable) @@ portable -> key_initializer
 
-    let parent_keys = Atomic.make ([] : key_initializer list)
+    (* CR tdelvecchio: Remove when we have [with]. *)
+    type key_initializer_list : value mod portable uncontended = KIs of key_initializer list
+
+    let parent_keys = Atomic.make (KIs [])
 
     let rec add_parent_key ki =
-      let l = Atomic.get parent_keys in
-      if not (Atomic.compare_and_set parent_keys l (ki :: l))
+      let KIs l = Atomic.get_safe parent_keys in
+      if not (Atomic.compare_and_set parent_keys (KIs l) (KIs (ki :: l)))
       then add_parent_key ki
 
-    let new_key ?split_from_parent init_orphan =
+    let new_key_safe ?split_from_parent init_orphan =
       let idx = Atomic.fetch_and_add key_counter 1 in
-      let k = (idx, init_orphan) in
+      let k = K (idx, init_orphan) in
       begin match split_from_parent with
       | None -> ()
       | Some split -> add_parent_key (KI(k, split))
       end;
       k
+
+    let new_key ?split_from_parent init_orphan =
+      let split_from_parent = Obj.magic_portable split_from_parent in
+      let init_orphan = Obj.magic_portable init_orphan in
+      let split_from_parent =
+        match split_from_parent with
+        | None -> None
+        | Some f ->
+          Some (fun x -> Obj.magic_portable (fun (_ : password) -> f x))
+      in
+      new_key_safe ?split_from_parent init_orphan
 
     (* If necessary, grow the current domain's local state array such that [idx]
     * is a valid index in the array. *)
@@ -247,13 +285,14 @@ module Runtime_5 = struct
         else maybe_grow idx
       end
 
-    let set (type a) (idx, _init) (x : a) =
+    let set' (type a) () (K (idx, _init)) (x : a) =
       let st = maybe_grow idx in
       (* [Sys.opaque_identity] ensures that flambda does not look at the type of
       * [x], which may be a [float] and conclude that the [st] is a float array.
       * We do not want OCaml's float array optimisation kicking in here. *)
       st.(idx) <- Obj_opt.some (Sys.opaque_identity x)
 
+    let set k x = set' () k x
 
     let[@inline never] array_compare_and_set a i oldval newval =
       (* Note: we cannot use [@poll error] due to the
@@ -264,7 +303,7 @@ module Runtime_5 = struct
         true
       ) else false
 
-    let get (type a) ((idx, init) : a key) : a =
+    let get' (type a) () (K (idx, init)) : a =
       let st = maybe_grow idx in
       let obj = st.(idx) in
       if Obj_opt.is_some obj
@@ -294,12 +333,15 @@ module Runtime_5 = struct
         end
       end
 
+    let get k = get' () k
+
     type key_value = KV : 'a key * 'a -> key_value
 
     let get_initial_keys () : key_value list =
+      let (KIs parent_keys) : key_initializer_list = Atomic.get_safe parent_keys in
       List.map
-        (fun (KI (k, split)) -> KV (k, (split (get k))))
-        (Atomic.get parent_keys)
+        (fun (KI (k, split)) -> KV (k, ((split (get k)) ())))
+        parent_keys
 
     let set_initial_keys (l: key_value list) =
       List.iter (fun (KV (k, v)) -> set k v) l
@@ -318,33 +360,43 @@ module Runtime_5 = struct
   (* first spawn, domain startup and at exit functionality *)
   let first_domain_spawned = Atomic.make false
 
-  let first_spawn_function = ref (fun () -> ())
+  type f : value mod portable = F of (unit -> unit) @@ portable
+
+  let first_spawn_function = Atomic.make (F (fun () -> ()))
 
   let before_first_spawn f =
-    if Atomic.get first_domain_spawned then
+    if Atomic.get_safe first_domain_spawned then
       raise (Invalid_argument "first domain already spawned")
     else begin
-      let old_f = !first_spawn_function in
+      (* We are guaranteed to still only have one domain, so this is safe. *)
+      let f = Obj.magic_portable f in
+      let F old_f = Atomic.get_safe first_spawn_function in
       let new_f () = old_f (); f () in
-      first_spawn_function := new_f
+      Atomic.set first_spawn_function (F new_f)
     end
 
   let do_before_first_spawn () =
-    if not (Atomic.get first_domain_spawned) then begin
+    if not (Atomic.get_safe first_domain_spawned) then begin
       Atomic.set first_domain_spawned true;
-      !first_spawn_function();
+      let F f = Atomic.get_safe first_spawn_function in
+      f ();
       (* Release the old function *)
-      first_spawn_function := (fun () -> ())
+      Atomic.set first_spawn_function (F (fun () -> ()))
     end
+
 
   let at_exit_key = DLS.new_key (fun () -> (fun () -> ()))
 
-  let at_exit f =
+  let at_exit' () f =
     let old_exit : unit -> unit = DLS.get at_exit_key in
     let new_exit () =
       f (); old_exit ()
     in
     DLS.set at_exit_key new_exit
+
+  let at_exit_safe = at_exit' ()
+
+  let at_exit = at_exit_safe
 
   let do_at_exit () =
     let f : unit -> unit = DLS.get at_exit_key in
@@ -354,7 +406,7 @@ module Runtime_5 = struct
 
   (******* Creation and Termination ********)
 
-  let spawn f =
+  let spawn_with_dls f =
     do_before_first_spawn ();
     let pk = DLS.get_initial_keys () in
 
@@ -390,6 +442,10 @@ module Runtime_5 = struct
     let domain = Raw.spawn body term_sync in
     { domain ; term_sync }
 
+  let spawn_safe f = spawn_with_dls (fun (_ : DLS.password) -> f ())
+
+  let spawn = spawn_safe
+
   let join { term_sync ; _ } =
     let open Raw in
     let rec loop () =
@@ -407,9 +463,64 @@ module Runtime_5 = struct
   let recommended_domain_count = Raw.get_recommended_domain_count
 end
 
-module type S = sig
+module type S4 = sig
+  [@@@warning "-32"]
+
+  module DLS : sig
+    type password
+    val initial_password : password
+    val with_password : (password -> 'a) -> 'a
+
+    type 'a key
+    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
+    val new_key_safe : ?split_from_parent:('a -> (password -> 'a)) -> (password -> 'a) -> 'a key
+    val get : 'a key -> 'a
+    val get' : password -> 'a key -> 'a
+    val set : 'a key -> 'a -> unit
+    val set' : password -> 'a key -> 'a -> unit
+
+    val init : unit -> unit
+  end
+
   type !'a t
-  val spawn : (unit -> 'a) -> 'a t @@ portable
+  val spawn : (unit -> 'a) -> 'a t
+  val spawn_safe : (unit -> 'a) -> 'a t
+  val spawn_with_dls : (DLS.password -> 'a) -> 'a t
+  val join : 'a t -> 'a
+  type id = private int
+  val get_id : 'a t -> id
+  val self : unit -> id
+  val cpu_relax : unit -> unit
+  val is_main_domain : unit -> bool
+  val recommended_domain_count : unit -> int
+  val before_first_spawn : (unit -> unit) -> unit
+  val at_exit : (unit -> unit) -> unit
+  val at_exit_safe : (unit -> unit) -> unit
+  val at_exit' : DLS.password -> (unit -> unit) -> unit
+  val do_at_exit : unit -> unit
+end
+
+module type S5 = sig
+  module DLS : sig
+    type password
+    val initial_password : password
+    val with_password : (password -> 'a @ contended portable) @ portable -> 'a @ contended portable @@ portable
+
+    type 'a key : value mod portable uncontended
+    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
+    val new_key_safe : ?split_from_parent:('a -> (password -> 'a) @ portable) @ portable -> (password -> 'a) @ portable -> 'a key @@ portable
+    val get : 'a key -> 'a
+    val get' : password -> 'a key -> 'a @@ portable
+    val set : 'a key -> 'a -> unit
+    val set' : password -> 'a key -> 'a -> unit @@ portable
+
+    val init : unit -> unit
+  end
+
+  type !'a t
+  val spawn : (unit -> 'a) -> 'a t
+  val spawn_safe : (unit -> 'a) @ portable -> 'a t @@ portable
+  val spawn_with_dls : (DLS.password -> 'a) @ portable -> 'a t @@ portable
   val join : 'a t -> 'a @@ portable
   type id = private int
   val get_id : 'a t -> id @@ portable
@@ -417,33 +528,22 @@ module type S = sig
   val cpu_relax : unit -> unit @@ portable
   val is_main_domain : unit -> bool @@ portable
   val recommended_domain_count : unit -> int @@ portable
-  val before_first_spawn : (unit -> unit) -> unit @@ portable
-  val at_exit : (unit -> unit) -> unit @@ portable
-  val do_at_exit : unit -> unit @@ portable
-
-  module DLS : sig
-    type 'a key
-    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key @@ portable
-    val get : 'a key -> 'a @@ portable
-    val set : 'a key -> 'a -> unit @@ portable
-  end
+  val before_first_spawn : (unit -> unit) -> unit
+  val at_exit : (unit -> unit) -> unit
+  val at_exit_safe : (unit -> unit) @ portable -> unit @@ portable
+  val at_exit' : DLS.password -> (unit -> unit) -> unit @@ portable
+  val do_at_exit : unit -> unit
 end
 
-module type S' = sig
-  include S
-  module DLS : sig
-    include module type of struct include DLS end
-    val init : unit -> unit @@ portable
-  end
-end
+let runtime_4_impl = (module Runtime_4 : S4)
+let runtime_5_impl = (module Runtime_5 : S5)
 
-let runtime_4_impl = (module Runtime_4 : S')
-let runtime_5_impl = (module Runtime_5 : S')
+let impl = if runtime5 () then runtime_5_impl else (Obj.magic (runtime_4_impl : (module S4)) : (module S5))
 
-let impl = if runtime5 () then runtime_5_impl else runtime_4_impl
-
-include (val impl : S')
+include (val impl : S5)
 
 let () = DLS.init ()
 
 let _ = Stdlib.do_domain_local_at_exit := do_at_exit
+
+
