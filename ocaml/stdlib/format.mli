@@ -240,7 +240,7 @@ val print_string : string -> unit @@ portable
 (** [pp_print_string ppf s] prints [s] in the current pretty-printing box. *)
 
 val pp_print_bytes : formatter -> bytes -> unit @@ portable
-val print_bytes : bytes -> unit @@ portable
+val print_bytes : bytes -> unit (* CR tdelvecchio: nonportable *)
 (** [pp_print_bytes ppf b] prints [b] in the current pretty-printing box.
     @since 4.13
 *)
@@ -546,7 +546,7 @@ val safe_set_geometry : max_indent:int -> margin:int -> unit @@ portable
    @since 4.11
 *)
 val pp_update_geometry : formatter -> (geometry -> geometry) -> unit @@ portable
-val update_geometry : (geometry -> geometry) -> unit @@ portable
+val update_geometry : (geometry -> geometry) -> unit
 
 val pp_get_geometry: formatter -> unit -> geometry @@ portable
 val get_geometry: unit -> geometry @@ portable
@@ -757,7 +757,7 @@ type stag += String_tag of tag
 *)
 
 val pp_open_stag : formatter -> stag -> unit @@ portable
-val open_stag : stag -> unit @@ portable
+val open_stag : stag -> unit
 (** [pp_open_stag ppf t] opens the semantic tag named [t].
 
   The [print_open_stag] tag-printing function of the formatter is called with
@@ -815,7 +815,7 @@ val set_formatter_out_channel : Stdlib.out_channel -> unit @@ portable
 val pp_set_formatter_output_functions :
   formatter -> (string -> int -> int -> unit) -> (unit -> unit) -> unit @@ portable
 val set_formatter_output_functions :
-  (string -> int -> int -> unit) -> (unit -> unit) -> unit @@ portable
+  (string -> int -> int -> unit) -> (unit -> unit) -> unit
 (** [pp_set_formatter_output_functions ppf out flush] redirects the
   standard pretty-printer output functions to the functions [out] and
   [flush].
@@ -833,7 +833,7 @@ val set_formatter_output_functions :
 val pp_get_formatter_output_functions :
   formatter -> unit -> (string -> int -> int -> unit) * (unit -> unit) @@ portable
 val get_formatter_output_functions :
-  unit -> (string -> int -> int -> unit) * (unit -> unit) @@ portable
+  unit -> (string -> int -> int -> unit) * (unit -> unit)
 (** Return the current output functions of the standard pretty-printer. *)
 
 (** {1:meaning Redefining formatter output} *)
@@ -880,7 +880,7 @@ type formatter_out_functions = {
 
 val pp_set_formatter_out_functions :
   formatter -> formatter_out_functions -> unit @@ portable
-val set_formatter_out_functions : formatter_out_functions -> unit @@ portable
+val set_formatter_out_functions : formatter_out_functions -> unit
 (** [pp_set_formatter_out_functions ppf out_funs]
   Set all the pretty-printer output functions of [ppf] to those of
   argument [out_funs],
@@ -898,7 +898,7 @@ val set_formatter_out_functions : formatter_out_functions -> unit @@ portable
 
 val pp_get_formatter_out_functions :
   formatter -> unit -> formatter_out_functions @@ portable
-val get_formatter_out_functions : unit -> formatter_out_functions @@ portable
+val get_formatter_out_functions : unit -> formatter_out_functions
 (** Return the current output functions of the pretty-printer,
   including line splitting and indentation functions. Useful to record the
   current setting and restore it afterwards.
@@ -925,7 +925,7 @@ type formatter_stag_functions = {
 
 val pp_set_formatter_stag_functions :
   formatter -> formatter_stag_functions -> unit @@ portable
-val set_formatter_stag_functions : formatter_stag_functions -> unit @@ portable
+val set_formatter_stag_functions : formatter_stag_functions -> unit
 (** [pp_set_formatter_stag_functions ppf tag_funs] changes the meaning of
   opening and closing semantic tag operations to use the functions in
   [tag_funs] when printing on [ppf].
@@ -947,7 +947,7 @@ val set_formatter_stag_functions : formatter_stag_functions -> unit @@ portable
 
 val pp_get_formatter_stag_functions :
   formatter -> unit -> formatter_stag_functions @@ portable
-val get_formatter_stag_functions : unit -> formatter_stag_functions @@ portable
+val get_formatter_stag_functions : unit -> formatter_stag_functions
 (** Return the current semantic tag operation functions of the standard
     pretty-printer.
 
@@ -990,29 +990,33 @@ val synchronized_formatter_of_out_channel :
     is flushed, such as with {!print_flush}.
 *)
 
-val std_formatter : formatter @@ portable
+val std_formatter : formatter
 (** The initial domain's standard formatter to write to standard output.
 
   It is defined as {!formatter_of_out_channel} {!Stdlib.stdout}.
 *)
 
-val get_std_formatter : unit -> formatter @@ portable
+val get_std_formatter : unit -> formatter
 (** [get_std_formatter ()] returns the current domain's standard formatter used
     to write to standard output.
     @since 5.0
 *)
 
-val err_formatter : formatter @@ portable
+val get_std_formatter' : Domain.DLS.password -> formatter @@ portable
+
+val err_formatter : formatter
 (** The initial domain's formatter to write to standard error.
 
   It is defined as {!formatter_of_out_channel} {!Stdlib.stderr}.
 *)
 
-val get_err_formatter : unit -> formatter @@ portable
+val get_err_formatter : unit -> formatter
 (** [get_err_formatter ()] returns the current domain's formatter used to write
    to standard error.
    @since 5.0
 *)
+
+val get_err_formatter' : Domain.DLS.password -> formatter @@ portable
 
 val formatter_of_buffer : Buffer.t -> formatter @@ portable
 (** [formatter_of_buffer b] returns a new formatter writing to
@@ -1021,25 +1025,29 @@ val formatter_of_buffer : Buffer.t -> formatter @@ portable
   pending material into the buffer.
 *)
 
-val stdbuf : Buffer.t @@ portable
+val stdbuf : Buffer.t
 (** The initial domain's string buffer in which [str_formatter] writes. *)
 
-val get_stdbuf : unit -> Buffer.t @@ portable
+val get_stdbuf : unit -> Buffer.t
 (** [get_stdbuf ()] returns the current domain's string buffer in which the
     current domain's string formatter writes.
     @since 5.0 *)
 
-val str_formatter : formatter @@ portable
+val get_stdbuf' : Domain.DLS.password -> Buffer.t
+
+val str_formatter : formatter
 (** The initial domain's formatter to output to the {!stdbuf} string buffer.
 
   [str_formatter] is defined as {!formatter_of_buffer} {!stdbuf}.
 *)
 
-val get_str_formatter : unit -> formatter @@ portable
+val get_str_formatter : unit -> formatter
 (** The current domain's formatter to output to the current domains string
     buffer.
     @since 5.0
 *)
+
+val get_str_formatter' : Domain.DLS.password -> formatter @@ portable
 
 val flush_str_formatter : unit -> string @@ portable
 (** Returns the material printed with [str_formatter] of the current domain,
@@ -1061,8 +1069,8 @@ val make_formatter :
 *)
 
 val make_synchronized_formatter :
-  (string -> int -> int -> unit) -> (unit -> unit) -> formatter Domain.DLS.key @@ portable
-[@@alert unstable][@@alert "-unstable"]
+  (string -> int -> int -> unit) -> (unit -> unit) -> formatter Domain.DLS.key
+[@@alert unstable][@@alert "-unstable"][@@alert unsafe]
 (** [make_synchronized_formatter out flush] returns the key to the domain-local
     state that holds the domain-local formatter that outputs with function
     [out], and flushes with function [flush].
@@ -1072,6 +1080,10 @@ val make_synchronized_formatter :
     is flushed, such as with {!print_flush}.
     @since 5.0
 *)
+
+val make_synchronized_formatter_safe :
+  (string -> int -> int -> unit) @ portable -> (unit -> unit) @ portable -> formatter Domain.DLS.key @@ portable
+[@@alert unstable][@@alert "-unstable"]
 
 val formatter_of_out_functions :
   formatter_out_functions -> formatter @@ portable
@@ -1345,7 +1357,7 @@ val fprintf : formatter -> ('a, formatter, unit) format -> 'a @@ portable
 
 *)
 
-val printf : ('a, formatter, unit) format -> 'a @@ portable
+val printf : ('a, formatter, unit) format -> 'a
 (** Same as [fprintf] above, but output on [get_std_formatter ()].
 
     It is defined similarly to [fun fmt -> fprintf (get_std_formatter ()) fmt]
@@ -1355,7 +1367,7 @@ val printf : ('a, formatter, unit) format -> 'a @@ portable
     the formatter is flushed, such as with {!print_flush}.
 *)
 
-val eprintf : ('a, formatter, unit) format -> 'a @@ portable
+val eprintf : ('a, formatter, unit) format -> 'a
 (** Same as [fprintf] above, but output on [get_err_formatter ()].
 
     It is defined similarly to [fun fmt -> fprintf (get_err_formatter ()) fmt]
