@@ -20,7 +20,7 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external runtime5 : unit -> bool = "%runtime5"
+external runtime5 : unit -> bool @@ portable = "%runtime5"
 
 module Runtime_4 = struct
   module DLS = struct
@@ -139,13 +139,13 @@ module Runtime_5 = struct
       cond : Condition.t ;
     }
 
-    external spawn : (unit -> 'a) -> 'a term_sync -> t
+    external spawn : (unit -> 'a) -> 'a term_sync -> t @@ portable
       = "caml_domain_spawn"
-    external self : unit -> t
+    external self : unit -> t @@ portable
       = "caml_ml_domain_id" [@@noalloc]
-    external cpu_relax : unit -> unit
+    external cpu_relax : unit -> unit @@ portable
       = "caml_ml_domain_cpu_relax"
-    external get_recommended_domain_count: unit -> int
+    external get_recommended_domain_count: unit -> int @@ portable
       = "caml_recommended_domain_count" [@@noalloc]
   end
 
@@ -162,16 +162,16 @@ module Runtime_5 = struct
 
     module Obj_opt : sig
       type t
-      val none : t
-      val some : 'a -> t
-      val is_some : t -> bool
+      val none : t @@ portable
+      val some : 'a -> t @@ portable
+      val is_some : t -> bool @@ portable
 
       (** [unsafe_get obj] may only be called safely
           if [is_some] is true.
 
           [unsafe_get (some v)] is equivalent to
           [Obj.obj (Obj.repr v)]. *)
-      val unsafe_get : t -> 'a
+      val unsafe_get : t -> 'a @@ portable
     end = struct
       type t = Obj.t
       let none = Obj.repr (ref 0)
@@ -182,12 +182,12 @@ module Runtime_5 = struct
 
     type dls_state = Obj_opt.t array
 
-    external get_dls_state : unit -> dls_state = "%dls_get"
+    external get_dls_state : unit -> dls_state @@ portable = "%dls_get"
 
-    external set_dls_state : dls_state -> unit =
+    external set_dls_state : dls_state -> unit @@ portable =
       "caml_domain_dls_set" [@@noalloc]
 
-    external compare_and_set_dls_state : dls_state -> dls_state -> bool =
+    external compare_and_set_dls_state : dls_state -> dls_state -> bool @@ portable =
       "caml_domain_dls_compare_and_set" [@@noalloc]
 
     let create_dls () =
@@ -409,23 +409,23 @@ end
 
 module type S = sig
   type !'a t
-  val spawn : (unit -> 'a) -> 'a t
-  val join : 'a t -> 'a
+  val spawn : (unit -> 'a) -> 'a t @@ portable
+  val join : 'a t -> 'a @@ portable
   type id = private int
-  val get_id : 'a t -> id
-  val self : unit -> id
-  val cpu_relax : unit -> unit
-  val is_main_domain : unit -> bool
-  val recommended_domain_count : unit -> int
-  val before_first_spawn : (unit -> unit) -> unit
-  val at_exit : (unit -> unit) -> unit
-  val do_at_exit : unit -> unit
+  val get_id : 'a t -> id @@ portable
+  val self : unit -> id @@ portable
+  val cpu_relax : unit -> unit @@ portable
+  val is_main_domain : unit -> bool @@ portable
+  val recommended_domain_count : unit -> int @@ portable
+  val before_first_spawn : (unit -> unit) -> unit @@ portable
+  val at_exit : (unit -> unit) -> unit @@ portable
+  val do_at_exit : unit -> unit @@ portable
 
   module DLS : sig
     type 'a key
-    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
-    val get : 'a key -> 'a
-    val set : 'a key -> 'a -> unit
+    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key @@ portable
+    val get : 'a key -> 'a @@ portable
+    val set : 'a key -> 'a -> unit @@ portable
   end
 end
 
@@ -433,7 +433,7 @@ module type S' = sig
   include S
   module DLS : sig
     include module type of struct include DLS end
-    val init : unit -> unit
+    val init : unit -> unit @@ portable
   end
 end
 

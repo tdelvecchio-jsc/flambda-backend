@@ -74,16 +74,16 @@ type !'a t
     [0 .. length a - 1] and invalid otherwise.
 *)
 
-val create : unit -> 'a t
+val create : unit -> 'a t @@ portable
 (** [create ()] is a new, empty array. *)
 
-val make : int -> 'a -> 'a t
+val make : int -> 'a -> 'a t @@ portable
 (** [make n x] is a new array of length [n], filled with [x].
 
     @raise Invalid_argument if [n < 0] or [n > Sys.max_array_length].
 *)
 
-val init : int -> (int -> 'a) -> 'a t
+val init : int -> (int -> 'a) -> 'a t @@ portable
 (** [init n f] is a new array [a] of length [n],
     such that [get a i] is [f i]. In other words,
     the elements of [a] are [f 0], then [f 1],
@@ -95,12 +95,12 @@ val init : int -> (int -> 'a) -> 'a t
     @raise Invalid_argument if [n < 0] or [n > Sys.max_array_length].
 *)
 
-val get : 'a t -> int -> 'a
+val get : 'a t -> int -> 'a @@ portable
 (** [get a i] is the [i]-th element of [a], starting with index [0].
 
     @raise Invalid_argument if the index is invalid *)
 
-val set : 'a t -> int -> 'a -> unit
+val set : 'a t -> int -> 'a -> unit @@ portable
 (** [set a i x] sets the [i]-th element of [a] to be [x].
 
     [i] must be a valid index. [set] does not add new elements to the
@@ -108,23 +108,23 @@ val set : 'a t -> int -> 'a -> unit
 
     @raise Invalid_argument if the index is invalid. *)
 
-val length : 'a t -> int
+val length : 'a t -> int @@ portable
 (** [length a] is the number of elements in the array. *)
 
-val is_empty : 'a t -> bool
+val is_empty : 'a t -> bool @@ portable
 (** [is_empty a] is [true] if [a] is empty, that is, if [length a = 0]. *)
 
-val get_last : 'a t -> 'a
+val get_last : 'a t -> 'a @@ portable
 (** [get_last a] is the element of [a] at index [length a - 1].
 
     @raise Invalid_argument if [a] is empty.
 *)
 
-val find_last : 'a t -> 'a option
+val find_last : 'a t -> 'a option @@ portable
 (** [find_last a] is [None] if [a] is empty
     and [Some (get_last a)] otherwise. *)
 
-val copy : 'a t -> 'a t
+val copy : 'a t -> 'a t @@ portable
 (** [copy a] is a shallow copy of [a], a new array
     containing the same elements as [a]. *)
 
@@ -133,10 +133,10 @@ val copy : 'a t -> 'a t
     Note: all operations adding elements raise [Invalid_argument] if the
     length needs to grow beyond {!Sys.max_array_length}. *)
 
-val add_last : 'a t -> 'a -> unit
+val add_last : 'a t -> 'a -> unit @@ portable
 (** [add_last a x] adds the element [x] at the end of the array [a]. *)
 
-val append_array : 'a t -> 'a array -> unit
+val append_array : 'a t -> 'a array -> unit @@ portable
 (** [append_array a b] adds all elements of [b] at the end of [a],
     in the order they appear in [b].
 
@@ -148,10 +148,10 @@ val append_array : 'a t -> 'a array -> unit
     ]}
 *)
 
-val append_list : 'a t -> 'a list -> unit
+val append_list : 'a t -> 'a list -> unit @@ portable
 (** Like {!append_array} but with a list. *)
 
-val append : 'a t -> 'a t -> unit
+val append : 'a t -> 'a t -> unit @@ portable
 (** [append a b] is like [append_array a b],
     but [b] is itself a dynamic array instead of a fixed-size array.
 
@@ -164,7 +164,7 @@ val append : 'a t -> 'a t -> unit
     into a temporary array.
 *)
 
-val append_seq : 'a t -> 'a Seq.t -> unit
+val append_seq : 'a t -> 'a Seq.t -> unit @@ portable
 (** Like {!append_array} but with a sequence.
 
     Warning: [append_seq a (to_seq_reentrant a)] simultaneously
@@ -177,7 +177,7 @@ val append_seq : 'a t -> 'a Seq.t -> unit
 val append_iter :
   'a t ->
   (('a -> unit) -> 'x -> unit) ->
-  'x -> unit
+  'x -> unit @@ portable
 (** [append_iter a iter x] adds each element of [x] to the end of [a].
     This is [iter (add_last a) x].
 
@@ -188,20 +188,20 @@ val append_iter :
 
 (** {1:removing Removing elements} *)
 
-val pop_last_opt : 'a t -> 'a option
+val pop_last_opt : 'a t -> 'a option @@ portable
 (** [pop_last_opt a] removes and returns the last element of [a],
     or [None] if the array is empty. *)
 
-val pop_last : 'a t -> 'a
+val pop_last : 'a t -> 'a @@ portable
 (** [pop_last a] removes and returns the last element of [a].
 
     @raise Not_found on an empty array. *)
 
-val remove_last : 'a t -> unit
+val remove_last : 'a t -> unit @@ portable
 (** [remove_last a] removes the last element of [a], if any.
     It does nothing if [a] is empty. *)
 
-val truncate : 'a t -> int -> unit
+val truncate : 'a t -> int -> unit @@ portable
 (** [truncate a n] truncates [a] to have at most [n] elements.
 
     It removes elements whose index is greater or equal to [n].
@@ -218,7 +218,7 @@ val truncate : 'a t -> int -> unit
     @raise Invalid_argument if [n < 0].
 *)
 
-val clear : 'a t -> unit
+val clear : 'a t -> unit @@ portable
 (** [clear a] is [truncate a 0], it removes all the elements of [a]. *)
 
 (** {1:iteration Iteration}
@@ -233,13 +233,13 @@ val clear : 'a t -> unit
     if it detects such a length change.
 *)
 
-val iter : ('a -> unit) -> 'a t -> unit
+val iter : ('a -> unit) -> 'a t -> unit @@ portable
 (** [iter f a] calls [f] on each element of [a]. *)
 
-val iteri : (int -> 'a -> unit) -> 'a t -> unit
+val iteri : (int -> 'a -> unit) -> 'a t -> unit @@ portable
 (** [iteri f a] calls [f i x] for each [x] at index [i] in [a]. *)
 
-val map : ('a -> 'b) -> 'a t -> 'b t
+val map : ('a -> 'b) -> 'a t -> 'b t @@ portable
 (** [map f a] is a new array of elements of the form [f x]
     for each element [x] of [a].
 
@@ -247,7 +247,7 @@ val map : ('a -> 'b) -> 'a t -> 'b t
     then the elements of [b] are [f x0], [f x1], [f x2].
 *)
 
-val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
+val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t @@ portable
 (** [mapi f a] is a new array of elements of the form [f i x]
     for each element [x] of [a] at index [i].
 
@@ -255,7 +255,7 @@ val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
     then the elements of [b] are [f 0 x0], [f 1 x1], [f 2 x2].
 *)
 
-val fold_left : ('acc -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
+val fold_left : ('acc -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc @@ portable
 (** [fold_left f acc a] folds [f] over [a] in order,
     starting with accumulator [acc].
 
@@ -268,20 +268,20 @@ val fold_left : ('acc -> 'a -> 'acc) -> 'acc -> 'a t -> 'acc
     ]}
 *)
 
-val fold_right : ('a -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc
+val fold_right : ('a -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc @@ portable
 (** [fold_right f a acc] computes
     [f x0 (f x1 (... (f xn acc) ...))]
     where [x0], [x1], ..., [xn] are the elements of [a].
 *)
 
-val exists : ('a -> bool) -> 'a t -> bool
+val exists : ('a -> bool) -> 'a t -> bool @@ portable
 (** [exists f a] is [true] if some element of [a] satisfies [f].
 
     For example, if the elements of [a] are [x0], [x1], [x2], then
     [exists f a] is [f x0 || f x1 || f x2].
 *)
 
-val for_all : ('a -> bool) -> 'a t -> bool
+val for_all : ('a -> bool) -> 'a t -> bool @@ portable
 (** [for_all f a] is [true] if all elements of [a] satisfy [f].
     This includes the case where [a] is empty.
 
@@ -289,7 +289,7 @@ val for_all : ('a -> bool) -> 'a t -> bool
     [exists f a] is [f x0 && f x1 && f x2].
 *)
 
-val filter : ('a -> bool) -> 'a t -> 'a t
+val filter : ('a -> bool) -> 'a t -> 'a t @@ portable
 (** [filter f a] is a new array of all the elements of [a] that satisfy [f].
     In other words, it is an array [b] such that, for each element [x]
     in [a] in order, [x] is added to [b] if [f x] is [true].
@@ -298,7 +298,7 @@ val filter : ('a -> bool) -> 'a t -> 'a t
     of all non-negative elements of [a], in order.
 *)
 
-val filter_map : ('a -> 'b option) -> 'a t -> 'b t
+val filter_map : ('a -> 'b option) -> 'a t -> 'b t @@ portable
 (** [filter_map f a] is a new array of elements [y]
     such that [f x] is [Some y] for an element [x] of [a].
     In others words, it is an array [b] such that, for each element
@@ -324,32 +324,32 @@ val filter_map : ('a -> 'b option) -> 'a t -> 'b t
     [Invalid_argument] if they observe such a change.
 *)
 
-val of_array : 'a array -> 'a t
+val of_array : 'a array -> 'a t @@ portable
 (** [of_array arr] returns a dynamic array corresponding to the
     fixed-sized array [a]. Operates in [O(n)] time by making a copy. *)
 
-val to_array : 'a t -> 'a array
+val to_array : 'a t -> 'a array @@ portable
 (** [to_array a] returns a fixed-sized array corresponding to the
     dynamic array [a]. This always allocate a new array and copies
     elements into it. *)
 
-val of_list : 'a list -> 'a t
+val of_list : 'a list -> 'a t @@ portable
 (** [of_list l] is the array containing the elements of [l] in
     the same order. *)
 
-val to_list : 'a t -> 'a list
+val to_list : 'a t -> 'a list @@ portable
 (** [to_list a] is a list with the elements contained in the array [a]. *)
 
-val of_seq : 'a Seq.t -> 'a t
+val of_seq : 'a Seq.t -> 'a t @@ portable
 (** [of_seq seq] is an array containing the same elements as [seq].
 
     It traverses [seq] once and will terminate only if [seq] is finite. *)
 
-val to_seq : 'a t -> 'a Seq.t
+val to_seq : 'a t -> 'a Seq.t @@ portable
 (** [to_seq a] is the sequence of elements
     [get a 0], [get a 1]... [get a (length a - 1)]. *)
 
-val to_seq_reentrant : 'a t -> 'a Seq.t
+val to_seq_reentrant : 'a t -> 'a Seq.t @@ portable
 (** [to_seq_reentrant a] is a reentrant variant of {!to_seq}, in the
     sense that one may still access its elements after the length of
     [a] has changed.
@@ -360,12 +360,12 @@ val to_seq_reentrant : 'a t -> 'a Seq.t
     less than [i] elements at this point.
 *)
 
-val to_seq_rev : 'a t -> 'a Seq.t
+val to_seq_rev : 'a t -> 'a Seq.t @@ portable
 (** [to_seq_rev a] is the sequence of elements
     [get a (l - 1)], [get a (l - 2)]... [get a 0],
     where [l] is [length a] at the time [to_seq_rev] is invoked. *)
 
-val to_seq_rev_reentrant : 'a t -> 'a Seq.t
+val to_seq_rev_reentrant : 'a t -> 'a Seq.t @@ portable
 (** [to_seq_rev_reentrant a] is a reentrant variant of {!to_seq_rev},
     in the sense that one may still access its elements after the
     length of [a] has changed.
@@ -404,10 +404,10 @@ val to_seq_rev_reentrant : 'a t -> 'a Seq.t
     memory usage or guarantee an optimal number of reallocations.
 *)
 
-val capacity : 'a t -> int
+val capacity : 'a t -> int @@ portable
 (** [capacity a] is the length of [a]'s backing array. *)
 
-val ensure_capacity : 'a t -> int -> unit
+val ensure_capacity : 'a t -> int -> unit @@ portable
 (** [ensure_capacity a n] makes sure that the capacity of [a]
     is at least [n].
 
@@ -430,7 +430,7 @@ val ensure_capacity : 'a t -> int -> unit
     slowdown noticeable when [arr] is large.
 *)
 
-val ensure_extra_capacity : 'a t -> int -> unit
+val ensure_extra_capacity : 'a t -> int -> unit @@ portable
 (** [ensure_extra_capacity a n] is [ensure_capacity a (length a + n)],
     it makes sure that [a] has room for [n] extra items.
 
@@ -445,7 +445,7 @@ val ensure_extra_capacity : 'a t -> int -> unit
     ]}
 *)
 
-val fit_capacity : 'a t -> unit
+val fit_capacity : 'a t -> unit @@ portable
 (** [fit_capacity a] reallocates a backing array if necessary, so that
     the resulting capacity is exactly [length a], with no additional
     empty space at the end. This can be useful to make sure there is
@@ -463,7 +463,7 @@ val fit_capacity : 'a t -> unit
     array for eventual future resizes.
 *)
 
-val set_capacity : 'a t -> int -> unit
+val set_capacity : 'a t -> int -> unit @@ portable
 (** [set_capacity a n] reallocates a backing array if necessary,
     so that the resulting capacity is exactly [n]. In particular,
     all elements of index [n] or greater are removed.
@@ -480,7 +480,7 @@ val set_capacity : 'a t -> int -> unit
     @raise Invalid_argument if [n < 0].
 *)
 
-val reset : 'a t -> unit
+val reset : 'a t -> unit @@ portable
 (** [reset a] clears [a] and replaces its backing array by an empty array.
 
     It is equivalent to [set_capacity a 0] or [clear a; fit_capacity a].

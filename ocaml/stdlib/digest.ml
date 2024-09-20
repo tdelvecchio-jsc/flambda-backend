@@ -46,24 +46,24 @@ let string_of_hex s =
 
 module type S = sig
   type t = string
-  val hash_length : int
-  val compare : t -> t -> int
-  val equal : t -> t -> bool
-  val string : string -> t
-  val bytes : bytes -> t
-  val substring : string -> int -> int -> t
-  val subbytes : bytes -> int -> int -> t
-  val channel : in_channel -> int -> t
-  val file : string -> t
-  val output : out_channel -> t -> unit
-  val input : in_channel -> t
-  val to_hex : t -> string
-  val of_hex : string -> t
+  val hash_length : int @@ portable
+  val compare : t -> t -> int @@ portable
+  val equal : t -> t -> bool @@ portable
+  val string : string -> t @@ portable
+  val bytes : bytes -> t @@ portable
+  val substring : string -> int -> int -> t @@ portable
+  val subbytes : bytes -> int -> int -> t @@ portable
+  val channel : in_channel -> int -> t @@ portable
+  val file : string -> t @@ portable
+  val output : out_channel -> t -> unit @@ portable
+  val input : in_channel -> t @@ portable
+  val to_hex : t -> string @@ portable
+  val of_hex : string -> t @@ portable
 end
 
 (* BLAKE2 hashing, parameterized by hash size *)
 
-module BLAKE2 (X: sig val hash_length : int end) : S = struct
+module BLAKE2 (X: sig val hash_length : int @@ portable end) : S = struct
 
   type t = string
 
@@ -77,10 +77,10 @@ module BLAKE2 (X: sig val hash_length : int end) : S = struct
 
   type state
 
-  external create_gen: int -> string -> state = "caml_blake2_create"
-  external update: state -> string -> int -> int -> unit = "caml_blake2_update"
-  external final: state -> int -> t = "caml_blake2_final"
-  external unsafe_string: int -> string -> string -> int -> int -> t
+  external create_gen: int -> string -> state @@ portable = "caml_blake2_create"
+  external update: state -> string -> int -> int -> unit @@ portable = "caml_blake2_update"
+  external final: state -> int -> t @@ portable = "caml_blake2_final"
+  external unsafe_string: int -> string -> string -> int -> int -> t @@ portable
                         = "caml_blake2_string"
 
   let create () = create_gen hash_length ""
@@ -156,8 +156,8 @@ module MD5 = struct
   let compare = String.compare
   let equal = String.equal
 
-  external unsafe_string: string -> int -> int -> t = "caml_md5_string"
-  external channel: in_channel -> int -> t = "caml_md5_chan"
+  external unsafe_string: string -> int -> int -> t @@ portable = "caml_md5_string"
+  external channel: in_channel -> int -> t @@ portable = "caml_md5_chan"
 
   let string str =
     unsafe_string str 0 (String.length str)
