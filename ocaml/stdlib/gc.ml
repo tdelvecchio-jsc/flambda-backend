@@ -127,7 +127,7 @@ let delete_alarm a = Atomic.set a false
    (which would prevent installation of the finaliser). *)
 let [@inline never] create_alarm f =
   let alarm = Atomic.make true in
-  Domain.at_exit (fun () -> delete_alarm alarm);
+  Domain.at_exit_safe (fun () -> delete_alarm alarm);
   let arec = { active = alarm; f = f } in
   finalise call_alarm arec;
   alarm

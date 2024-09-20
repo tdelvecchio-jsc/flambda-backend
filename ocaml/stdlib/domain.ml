@@ -402,7 +402,7 @@ module Runtime_5 = struct
     let f : unit -> unit = DLS.get at_exit_key in
     f ()
 
-  let _ = Stdlib.do_domain_local_at_exit := do_at_exit
+  let _ = Stdlib.set_do_domain_local_at_exit do_at_exit
 
   (******* Creation and Termination ********)
 
